@@ -1,14 +1,23 @@
 package com.example.mapa;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+
+import org.json.JSONObject;
+
 import com.google.android.gms.location.LocationClient;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.GoogleMap.OnMarkerClickListener;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.CameraPosition;
+import com.google.android.gms.maps.model.Circle;
+import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 
 import android.app.ProgressDialog;
@@ -17,8 +26,11 @@ import android.graphics.Color;
 import android.location.Criteria;
 import android.location.Location;
 import android.location.LocationManager;
+import android.os.AsyncTask;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
+import android.widget.TextView;
 import android.widget.Toast;
 
 public class MainActivity extends android.support.v4.app.FragmentActivity implements android.location.LocationListener {
@@ -27,16 +39,19 @@ public class MainActivity extends android.support.v4.app.FragmentActivity implem
 	LocationClient mLocationClient;
 	LocationManager handle;
 	private String provider;
-	LatLng ubicacion;
+	LatLng ubicacion, monedaCord, EstNacCoord;
 	ProgressDialog pd;
 	Location loc,Moneda, Estadio;
 	Marker moneda,estNacCoord;
 	double distance;
+	TextView tv1;
 		
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
+		
+		tv1 = (TextView)findViewById(R.id.Tv1);
 		//Declaramos el objeto mapa
 		mapa = ((SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map)).getMap();	//Inicializamos el objeto mapara para poder manipular
 		mapa.setMapType(GoogleMap.MAP_TYPE_NORMAL);													//Seleccionamos el tipo de mapa de acuerdo a lo requeridoMAP_TYPE_NORMAL / MAP_TYPE_HYBRID / MAP_TYPE_SATELLITE / MAP_TYPE_TERRAIN
@@ -46,25 +61,24 @@ public class MainActivity extends android.support.v4.app.FragmentActivity implem
 		centrarMapa();	
 		//Genero un nuevo marcador
 		//title(para el titulo) snippet(para el resto del texto)
-		LatLng monedaCord = new LatLng(-33.442909,-70.65386999999998);
+		monedaCord = new LatLng(-33.442909,-70.65386999999998);
 		moneda = mapa.addMarker(new MarkerOptions().position(monedaCord).title("Usted quiere ir a la moneda"));
 		
-		LatLng EstNacCoord = new LatLng(-33.46449847739583,-70.6105856847168);
+		EstNacCoord = new LatLng(-33.46449847739583,-70.6105856847168);
 		estNacCoord = mapa.addMarker(new MarkerOptions().position(EstNacCoord).title("Usted quiere al Estadio"));
 		
 		//Setear una variable Location
 		Estadio =new Location("Estadio");
-		Estadio.setLatitude(-33.46449847739583 );
-		Estadio.setLongitude(-70.65386999999998);
+		Estadio.setLatitude(-33.46449847739583);
+		Estadio.setLongitude(-70.6105856847168);
 		
 		Moneda =new Location("Moneda");
-		Moneda.setLatitude(-33.442909 );
+		Moneda.setLatitude(-33.442909);
 		Moneda.setLongitude(-70.65386999999998);
 		
 		//Distancia entre el punto A y B
 		distance = Moneda.distanceTo(Estadio);
 		distance = distance/1000;
-		mostrarLineas();
 		
 		mapa.setOnMarkerClickListener(new OnMarkerClickListener() {
 			public boolean onMarkerClick(Marker marker) {
@@ -74,6 +88,23 @@ public class MainActivity extends android.support.v4.app.FragmentActivity implem
 				return false;
 			}
 		});
+		
+		/*Polyline line = mapa.addPolyline(new PolylineOptions()
+        .add(monedaCord, EstNacCoord)
+        .geodesic(true));*/	
+		
+		// Instantiates a new CircleOptions object and defines the center and radius
+		CircleOptions circleOptions = new CircleOptions();
+		// Indico las coordenadas del centro y el radio en metros
+		circleOptions.center(new LatLng(-33.442909, -70.65386999999998)).radius(10000);
+		circleOptions.strokeColor(Color.GREEN);
+		// Get back the mutable Circle
+		Circle circle = mapa.addCircle(circleOptions);
+		
+		String url = getMapsApiDirectionsUrl();
+	    ReadTask downloadTask = new ReadTask();
+	    downloadTask.execute(url);
+	 
 	}
 	
 	public void centrarMapa(){
@@ -114,23 +145,6 @@ public class MainActivity extends android.support.v4.app.FragmentActivity implem
 		//Se mueve la camara a lo indicado anteriormente
 		mapa.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
 	}
-	
-	private void mostrarLineas()
-	{
-	    //Dibujo con Lineas cuadro en el mapa
-		PolylineOptions lineas = new PolylineOptions()
-	            .add(new LatLng(45.0, -12.0))
-	            .add(new LatLng(45.0, 5.0))
-	            .add(new LatLng(34.5, 5.0))
-	            .add(new LatLng(34.5, -12.0))
-	            .add(new LatLng(45.0, -12.0));
-		//Ancho de la linea
-	    lineas.width(8);
-	    //Color de la linea
-	    lineas.color(Color.GREEN);
-	    //Agrego lo descrito al objeto mapa
-	    mapa.addPolyline(lineas);
-	}
 
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
@@ -160,4 +174,88 @@ public class MainActivity extends android.support.v4.app.FragmentActivity implem
 		// TODO Auto-generated method stub		
 	}
 	//Fin metodos location
+	//monedaCord,EstNacCoord
+	 private String getMapsApiDirectionsUrl() {
+		    String waypoints = "waypoints=optimize:true|"
+		            + monedaCord.latitude + "," + monedaCord.longitude
+		            + "|" + "|" + EstNacCoord.latitude + ","
+		            + EstNacCoord.longitude;
+		    String sensor = "sensor=false";
+		    String params = waypoints + "&" + sensor;
+		    String output = "json";
+		    String url = "https://maps.googleapis.com/maps/api/directions/"
+		        + output + "?" + params;
+		    //tv1.setText(url);
+		    return url;
+		  }
+		 
+		  private class ReadTask extends AsyncTask<String, Void, String> {
+		    @Override
+		    protected String doInBackground(String... url) {
+		      String data = "";
+		      try {
+		        HttpConnection http = new HttpConnection();
+		        data = http.readUrl(url[0]);
+		      } catch (Exception e) {
+		        Log.d("Background Task", e.toString());
+		      }
+		      return data;
+		    }
+		 
+		    @Override
+		    protected void onPostExecute(String result) {
+		      super.onPostExecute(result);
+		      new ParserTask().execute(result);
+		    }
+		  }
+		 
+		  private class ParserTask extends
+		      AsyncTask<String, Integer, List<List<HashMap<String, String>>>> {
+		 
+		    @Override
+		    protected List<List<HashMap<String, String>>> doInBackground(
+		        String... jsonData) {
+		 
+		      JSONObject jObject;
+		      List<List<HashMap<String, String>>> routes = null;
+		 
+		      try {
+		        jObject = new JSONObject(jsonData[0]);
+		        PathJSONParser parser = new PathJSONParser();
+		        routes = parser.parse(jObject);
+		      } catch (Exception e) {
+		        e.printStackTrace();
+		      }
+		      return routes;
+		    }
+		 
+		    @Override
+		    protected void onPostExecute(List<List<HashMap<String, String>>> routes) {
+		      ArrayList<LatLng> points = null;
+		      PolylineOptions polyLineOptions = null;
+		 
+		      // traversing through routes
+		      for (int i = 0; i < routes.size(); i++) {
+		        points = new ArrayList<LatLng>();
+		        polyLineOptions = new PolylineOptions();
+		        List<HashMap<String, String>> path = routes.get(i);
+		 
+		        for (int j = 0; j < path.size(); j++) {
+		          HashMap<String, String> point = path.get(j);
+		 
+		          double lat = Double.parseDouble(point.get("lat"));
+		          double lng = Double.parseDouble(point.get("lng"));
+		          LatLng position = new LatLng(lat, lng);
+		 
+		          points.add(position);
+		        }
+		 
+		        polyLineOptions.addAll(points);
+		        polyLineOptions.width(2);
+		        polyLineOptions.color(Color.BLUE);
+		      }
+		 
+		      mapa.addPolyline(polyLineOptions);
+		    }
+		  }
 }

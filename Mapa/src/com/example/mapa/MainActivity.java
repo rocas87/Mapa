@@ -17,7 +17,6 @@ import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
-import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 
 import android.app.ProgressDialog;
@@ -39,7 +38,7 @@ public class MainActivity extends android.support.v4.app.FragmentActivity implem
 	LocationClient mLocationClient;
 	LocationManager handle;
 	private String provider;
-	LatLng ubicacion, monedaCord, EstNacCoord;
+	LatLng Miubicacion, monedaCord, EstNacCoord;
 	ProgressDialog pd;
 	Location loc,Moneda, Estadio;
 	Marker moneda,estNacCoord;
@@ -101,6 +100,7 @@ public class MainActivity extends android.support.v4.app.FragmentActivity implem
 		// Get back the mutable Circle
 		Circle circle = mapa.addCircle(circleOptions);
 		
+		//Dibujo ruta entre mas de 2 puntos
 		String url = getMapsApiDirectionsUrl();
 	    ReadTask downloadTask = new ReadTask();
 	    downloadTask.execute(url);
@@ -114,7 +114,7 @@ public class MainActivity extends android.support.v4.app.FragmentActivity implem
 	    Criteria c = new Criteria();
 	    //obtiene el mejor proveedor en función del criterio asignado
 	    //ACCURACY_FINE(La mejor presicion)--ACCURACY_COARSE(PRESISION MEDIA)
-	    c.setAccuracy(Criteria.ACCURACY_FINE);
+	    c.setAccuracy(Criteria.ACCURACY_COARSE);
 	    //Indica si es necesaria la altura por parte del proveedor
 	    c.setAltitudeRequired(false);
 	    provider = handle.getBestProvider(c, false);
@@ -126,14 +126,14 @@ public class MainActivity extends android.support.v4.app.FragmentActivity implem
 	    
 	    if(loc != null){
 		    //Obtenemos la última posición conocida dada por el proveedor
-		    ubicacion = new LatLng(loc.getLatitude(),loc.getLongitude());
-			configGPS(ubicacion);
+		    Miubicacion = new LatLng(loc.getLatitude(),loc.getLongitude());
+			configGPS(Miubicacion);
 		}else
 		{	
-			ubicacion = new LatLng(-33.442909,-70.65386999999998);
+			//Miubicacion = new LatLng(-33.442909,-70.65386999999998);
 			//Toast t1 = Toast.makeText(this, "No se pudo Obtener la ubicacion", Toast.LENGTH_LONG);
 			//t1.show();
-			configGPS(ubicacion);
+			//configGPS(Miubicacion);
 		 }		
 	}
 	
@@ -156,7 +156,7 @@ public class MainActivity extends android.support.v4.app.FragmentActivity implem
 	public void onLocationChanged(Location location) {
 		// TODO Auto-generated method stub
 		//Transforma las variales lat y long en 1 sola variable del tipo LatLng
-		ubicacion = new LatLng(loc.getLatitude(),loc.getLongitude());
+		Miubicacion = new LatLng(loc.getLatitude(),loc.getLongitude());
 	}
 
 	@Override
@@ -177,9 +177,11 @@ public class MainActivity extends android.support.v4.app.FragmentActivity implem
 	//monedaCord,EstNacCoord
 	 private String getMapsApiDirectionsUrl() {
 		    String waypoints = "waypoints=optimize:true|"
-		            + monedaCord.latitude + "," + monedaCord.longitude
-		            + "|" + "|" + EstNacCoord.latitude + ","
-		            + EstNacCoord.longitude;
+		    		+ Miubicacion.latitude + "," + Miubicacion.longitude
+		            + "|" + "|" 
+		    		+ monedaCord.latitude + "," + monedaCord.longitude
+		            + "|" + "|" 
+		            + EstNacCoord.latitude + ","+ EstNacCoord.longitude;
 		    String sensor = "sensor=false";
 		    String params = waypoints + "&" + sensor;
 		    String output = "json";
